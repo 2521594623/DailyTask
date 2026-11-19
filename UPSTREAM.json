@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/AndroidCoderPeng/DailyTask",
+  "branch": "master",
+  "commit": "a52e094125ea5aff21e56f0d6fb8c91871f0efbb",
+  "commit_date_utc": "2026-11-15T09:23:34Z",
+  "retrieved_date": "2026-11-19",
+  "upstream_version": "2.5.0.0",
+  "release_status": "No GitHub releases or tags; this is a pinned default-branch snapshot, not a certified stable release.",
+  "source_archive_sha256": "4d977fdbcba0a95306b99e1f857f6cd8dcb1a7ddeafd06ae9466e0b521d10e88"
+}

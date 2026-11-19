@@ -44,10 +44,19 @@ android {
 
     signingConfigs {
         release {
-            storeFile file('DailyTask.jks')
-            storePassword '123456789'
-            keyAlias 'key0'
-            keyPassword '123456789'
+            // Optional personal keystore; the upstream public key remains the default.
+            def customStore = System.getenv('DAILYTASK_KEYSTORE_PATH')
+            if (customStore) {
+                ['DAILYTASK_STORE_PASSWORD', 'DAILYTASK_KEY_ALIAS', 'DAILYTASK_KEY_PASSWORD'].each {
+                    if (!System.getenv(it)) {
+                        throw new GradleException("Missing signing environment variable: ${it}")
+                    }
+                }
+            }
+            storeFile customStore ? file(customStore) : file('DailyTask.jks')
+            storePassword customStore ? System.getenv('DAILYTASK_STORE_PASSWORD') : '123456789'
+            keyAlias customStore ? System.getenv('DAILYTASK_KEY_ALIAS') : 'key0'
+            keyPassword customStore ? System.getenv('DAILYTASK_KEY_PASSWORD') : '123456789'
         }
     }
 

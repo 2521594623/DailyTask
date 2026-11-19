@@ -1,0 +1,151 @@
+name: Build signed APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      signing:
+        description: "签名：upstream-public 无需配置；personal 使用自己的 Secrets"
+        required: true
+        default: upstream-public
+        type: choice
+        options:
+          - upstream-public
+          - personal
+  push:
+    branches: [master, main]
+    paths:
+      - ".github/workflows/build.yml"
+      - "app/**"
+      - "gradle/**"
+      - "*.gradle"
+      - "gradle.properties"
+      - "gradlew*"
+      - "scripts/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install JDK 17
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android command line tools
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          cmdline-tools-version: "13114758"
+          packages: "platform-tools"
+          log-accepted-android-sdk-licenses: "false"
+
+      - name: Install exact SDK, NDK and CMake
+        run: |
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" \
+            "ndk;21.4.7075529" "cmake;3.22.1"
+
+      - name: Configure Gradle cache and validate wrapper
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-provider: basic
+          cache-read-only: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+      - name: Restore optional personal signing key
+        if: ${{ inputs.signing == 'personal' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for variable in KEYSTORE_BASE64 STORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [[ -z "${!variable}" ]]; then
+              echo "::error::Missing repository secret for personal signing: $variable"
+              exit 1
+            fi
+          done
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/dailytask-personal.jks"
+          echo "DAILYTASK_KEYSTORE_PATH=$RUNNER_TEMP/dailytask-personal.jks" >> "$GITHUB_ENV"
+
+      - name: Record toolchain
+        shell: bash
+        run: |
+          mkdir -p build-logs
+          chmod +x gradlew
+          {
+            java -version
+            ./gradlew --version
+            sdkmanager --list_installed
+            git rev-parse HEAD
+          } > build-logs/toolchain.txt 2>&1
+
+      - name: Build signed release using Gradle Wrapper
+        env:
+          DAILYTASK_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          DAILYTASK_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          DAILYTASK_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --stacktrace --console=plain \
+            :app:assembleRelease 2>&1 | tee build-logs/assemble-release.log
+
+      - name: Verify signature, package and CPU architectures
+        run: python3 scripts/verify_apk.py --out dist
+
+      - name: Add provenance and license
+        env:
+          SIGNING_MODE: ${{ inputs.signing || 'upstream-public' }}
+        run: |
+          cp LICENSE BUILDING.zh-CN.md PRIVACY-REVIEW.zh-CN.md dist/
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          provenance = {
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "upstream_base": json.loads(pathlib.Path("UPSTREAM.json").read_text()),
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "signing": os.environ["SIGNING_MODE"],
+          }
+          pathlib.Path("dist/provenance.json").write_text(json.dumps(provenance, indent=2))
+          PY
+
+      - name: Upload installable APK and verification report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: DailyTask-APK-${{ github.run_number }}-${{ github.run_attempt }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build logs even on failure
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: DailyTask-build-logs-${{ github.run_number }}-${{ github.run_attempt }}
+          path: build-logs/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Remove temporary personal key
+        if: ${{ always() && inputs.signing == 'personal' }}
+        run: rm -f "$RUNNER_TEMP/dailytask-personal.jks"

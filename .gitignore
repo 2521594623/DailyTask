@@ -72,3 +72,11 @@ lint/tmp/
 # lint/reports/
 
 /apk
+
+# Local delivery reports and personal signing material
+/dist/
+/build-logs/
+/personal-signing/
+*.personal.jks
+__pycache__/
+*.pyc
