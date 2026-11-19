@@ -8,6 +8,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 添加本地 C++ 源码文件
 add_library(${PROJECT_NAME} SHARED daily_task.cpp)
 
+# Keep the existing NDK while making LOAD segments compatible with 16 KB pages.
+target_link_options(${PROJECT_NAME} PRIVATE "-Wl,-z,max-page-size=16384")
+
 # 包含头文件路径
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 

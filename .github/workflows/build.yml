@@ -11,16 +11,6 @@ on:
         options:
           - upstream-public
           - personal
-  push:
-    branches: [master, main]
-    paths:
-      - ".github/workflows/build.yml"
-      - "app/**"
-      - "gradle/**"
-      - "*.gradle"
-      - "gradle.properties"
-      - "gradlew*"
-      - "scripts/**"
 
 permissions:
   contents: read

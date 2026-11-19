@@ -50,6 +50,8 @@ def main():
     signature = run([tools / ("apksigner.bat" if os.name == "nt" else "apksigner"),
                      "verify", "--verbose", "--print-certs", apk])
     alignment = run([tools / ("zipalign.exe" if os.name == "nt" else "zipalign"), "-c", "-v", "4", apk])
+    alignment16 = run([tools / ("zipalign.exe" if os.name == "nt" else "zipalign"),
+                       "-c", "-P", "16", "-v", "4", apk])
     badging = run([tools / ("aapt.exe" if os.name == "nt" else "aapt"), "dump", "badging", apk])
     permissions = run([tools / ("aapt.exe" if os.name == "nt" else "aapt"), "dump", "permissions", apk])
     package = re.search(r"package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'", badging)
@@ -75,6 +77,8 @@ def main():
             raise ValueError(f"Unexpected CPU architectures: {abis}")
         if any(f"lib/{abi}/libdaily_task.so" not in native for abi in abis):
             raise ValueError("Missing native watermark library")
+        if not all(values and min(values) >= 16384 for values in native.values()):
+            raise ValueError("Native library LOAD segments are not aligned for 16 KB pages")
     args.out.mkdir(parents=True, exist_ok=True)
     dest = args.out / apk.name
     if dest.resolve() != apk:
@@ -87,6 +91,7 @@ def main():
         "min_sdk": int(minimum[1]), "target_sdk": int(target[1]), "abis": abis,
         "release_non_debuggable": True, "zip_crc_verified": True,
         "signature_verified": True, "zip_alignment_4k_verified": True,
+        "zip_alignment_16k_verified": True,
         "native_elf_load_alignments": native,
         "native_elf_16k_compatible": all(values and min(values) >= 16384 for values in native.values()),
         "device_install_tested": False, "functional_tested": False,
@@ -94,6 +99,7 @@ def main():
     (args.out / "verification.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     (args.out / "signature.txt").write_text(signature, encoding="utf-8")
     (args.out / "zipalign.txt").write_text(alignment, encoding="utf-8")
+    (args.out / "zipalign-16k.txt").write_text(alignment16, encoding="utf-8")
     (args.out / "package.txt").write_text(badging, encoding="utf-8")
     (args.out / "permissions.txt").write_text(permissions, encoding="utf-8")
     (args.out / "SHA256SUMS.txt").write_text(f"{sha256}  {apk.name}\n", encoding="utf-8")

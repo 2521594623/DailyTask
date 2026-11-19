@@ -13,7 +13,7 @@
 | 中至高：请求和通知日志可能包含隐私 | `retrofit/RetrofitFactory.kt` 的 `debug` 默认 true，BODY 日志可包含 URL 参数 Key、正文、图片 Base64；通知服务记录收到的通知内容 | 不要公开 logcat / 导出日志，截屏前关闭敏感页面。本次为保留行为没有修改日志逻辑 |
 | 中：允许备份、允许明文流量 | `AndroidManifest.xml` 的 `allowBackup=true`、`usesCleartextTraffic=true` | 具体备份行为受 Android 版本与厂商影响；明文开关允许 HTTP，但扫描到的业务 URL 为 HTTPS，不能据开关断言已经明文上传。生产化应另行评估加密和网络策略 |
 | 中：通知内容本地存储 | `NotificationMonitorService.kt` 保存目标应用及辅助聊天应用的通知到 SQLite，清理 90 天以前记录 | 可能保存聊天、考勤和联系人相关内容。谨慎授权通知使用权和分享导出记录 |
-| 中：旧 NDK 与 16 KB 页面 | `app/build.gradle` 固定 NDK 21.4.7075529 | 对新设备的原生库页对齐支持须以 APK ELF 报告为准，不能仅凭 targetSdk 36 宣称适配全部 Android 16 设备 |
+| 已做构建兼容性修复：旧 NDK 与 16 KB 页面 | `app/build.gradle` 固定 NDK 21.4.7075529；首次 APK 的 LOAD 段只有 4 KB 对齐 | 在 CMake 为原有库增加 16 KB 链接对齐参数，校验脚本同时验证 ELF 及 APK 对齐；这不是完成新系统真机功能测试 |
 
 以上风险主要来自上游既有实现。本次构建工作保留业务与界面，记录风险而未擅自删除功能。建议在隔离设备、隔离账号和不含敏感数据的学习场景测试。
 

@@ -85,7 +85,7 @@ python3 scripts/verify_apk.py --out dist
 
 ## 校验与测试边界
 
-`scripts/verify_apk.py` 会运行 Android SDK `apksigner verify --verbose --print-certs`、`zipalign`、`aapt`，检查 ZIP CRC、代码/资源完整性、非调试 release 标志和四种 ABI，并输出 SHA-256。它还检查原生 ELF 的 LOAD 段对齐；`native_elf_16k_compatible=false` 时，不能承诺在要求 16 KB 页的设备上正常运行。
+`scripts/verify_apk.py` 会运行 Android SDK `apksigner verify --verbose --print-certs`、`zipalign`、`aapt`，检查 ZIP CRC、代码/资源完整性、非调试 release 标志和四种 ABI，并输出 SHA-256。最初构建发现旧 NDK 的原生库只有 4 KB 页对齐，因此给原有 CMake 增加 `-Wl,-z,max-page-size=16384`，保留 NDK 版本及原生逻辑。最终工作流同时要求 ELF LOAD 段和 APK 中未压缩原生库通过 16 KB 对齐校验；仍未做 16 KB 设备的运行测试。
 
 签名、结构校验不等于完成手机安装或业务测试。没有连接的测试设备时，报告会明确记录 `device_install_tested=false` 和 `functional_tested=false`。通知监听、系统截屏、厂商后台限制和实际出勤流程需要本人在自己的设备与授权范围内验证。
 
