@@ -1,6 +1,6 @@
 # DailyTask APK 构建与安装
 
-本构建基于作者 AndroidCoderPeng / Pengxh 的 DailyTask，保留原界面、功能、作者信息和根目录 LICENSE。上游提交见 `UPSTREAM.json`。上游没有 GitHub Release 或标签，所用源码为 2026-11-19 查询到的默认分支最新快照，不能称为作者认证的稳定发布版。
+本构建基于作者 AndroidCoderPeng / Pengxh 的 DailyTask，保留原界面、功能、作者信息和根目录 LICENSE。上游提交见 `UPSTREAM.json`。上游没有 GitHub Release 或标签，所用源码为 2026-11-20 查询到的默认分支最新快照，不能称为作者认证的稳定发布版。
 
 ## 直接安装
 
